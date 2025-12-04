@@ -1,0 +1,9 @@
+{
+  "/ml/recommendations/page": "app/ml/recommendations/page.js",
+  "/users/[id]/page": "app/users/[id]/page.js",
+  "/compare/page": "app/compare/page.js",
+  "/users/add/page": "app/users/add/page.js",
+  "/ml/page": "app/ml/page.js",
+  "/page": "app/page.js",
+  "/games/page": "app/games/page.js"
+}
