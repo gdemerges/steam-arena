@@ -19,6 +19,8 @@ import {
   ClockIcon,
   TrophyIcon,
   Squares2X2Icon,
+  ChevronUpIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 import {
   PieChart,
@@ -73,6 +75,8 @@ export default function UserDetailPage() {
   const [genreData, setGenreData] = useState<GenrePlaytime[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+  const [sortBy, setSortBy] = useState<'playtime' | 'recent' | 'name'>('playtime')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   const loadData = async () => {
     setLoading(true)
@@ -97,6 +101,41 @@ export default function UserDetailPage() {
   useEffect(() => {
     loadData()
   }, [userId])
+
+  // Sort games based on current sort settings
+  const sortedGames = [...games].sort((a, b) => {
+    let comparison = 0
+    switch (sortBy) {
+      case 'playtime':
+        comparison = (a.playtime_forever || 0) - (b.playtime_forever || 0)
+        break
+      case 'recent':
+        comparison = (a.playtime_2weeks || 0) - (b.playtime_2weeks || 0)
+        break
+      case 'name':
+        comparison = (a.game?.name || '').localeCompare(b.game?.name || '')
+        break
+    }
+    return sortOrder === 'desc' ? -comparison : comparison
+  })
+
+  const handleSort = (column: 'playtime' | 'recent' | 'name') => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
+    } else {
+      setSortBy(column)
+      setSortOrder('desc')
+    }
+  }
+
+  const SortIcon = ({ column }: { column: 'playtime' | 'recent' | 'name' }) => {
+    if (sortBy !== column) return null
+    return sortOrder === 'desc' ? (
+      <ChevronDownIcon className="h-4 w-4 inline ml-1" />
+    ) : (
+      <ChevronUpIcon className="h-4 w-4 inline ml-1" />
+    )
+  }
 
   const handleSync = async () => {
     setSyncing(true)
@@ -280,26 +319,73 @@ export default function UserDetailPage() {
 
       {/* Games List */}
       <div className="card">
-        <h2 className="text-xl font-semibold mb-4">Game Library</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Game Library ({games.length} games)</h2>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleSort('playtime')}
+              className={`px-3 py-1 rounded text-sm transition-colors ${
+                sortBy === 'playtime'
+                  ? 'bg-steam-blue text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              Total Playtime <SortIcon column="playtime" />
+            </button>
+            <button
+              onClick={() => handleSort('recent')}
+              className={`px-3 py-1 rounded text-sm transition-colors ${
+                sortBy === 'recent'
+                  ? 'bg-steam-blue text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              Last 2 Weeks <SortIcon column="recent" />
+            </button>
+            <button
+              onClick={() => handleSort('name')}
+              className={`px-3 py-1 rounded text-sm transition-colors ${
+                sortBy === 'name'
+                  ? 'bg-steam-blue text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              Name <SortIcon column="name" />
+            </button>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="text-left text-gray-400 border-b border-gray-700">
                 <th className="pb-3 font-medium">Game</th>
-                <th className="pb-3 font-medium text-right">Total Playtime</th>
-                <th className="pb-3 font-medium text-right">Last 2 Weeks</th>
+                <th 
+                  className="pb-3 font-medium text-right cursor-pointer hover:text-white transition-colors"
+                  onClick={() => handleSort('playtime')}
+                >
+                  Total Playtime <SortIcon column="playtime" />
+                </th>
+                <th 
+                  className="pb-3 font-medium text-right cursor-pointer hover:text-white transition-colors"
+                  onClick={() => handleSort('recent')}
+                >
+                  Last 2 Weeks <SortIcon column="recent" />
+                </th>
               </tr>
             </thead>
             <tbody>
-              {games.map((item) => (
+              {sortedGames.map((item) => (
                 <tr key={item.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
                   <td className="py-3">
                     <div className="flex items-center gap-3">
-                      {item.game.header_image && (
+                      {item.game.app_id && (
                         <img
-                          src={item.game.header_image}
+                          src={item.game.header_image || `https://cdn.cloudflare.steamstatic.com/steam/apps/${item.game.app_id}/header.jpg`}
                           alt={item.game.name}
                           className="w-16 h-8 object-cover rounded"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none'
+                          }}
                         />
                       )}
                       <span className="truncate">{item.game.name}</span>
