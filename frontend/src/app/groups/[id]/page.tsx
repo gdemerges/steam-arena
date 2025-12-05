@@ -39,14 +39,22 @@ interface GameIntersection {
   avg_playtime: number
 }
 
-interface UserComparison {
+interface UserStats {
+  user_id: string
   steam_id: string
   persona_name: string
   avatar_url: string
   total_games: number
   total_playtime: number
-  total_achievements: number
   games_played: number
+  achievements_unlocked: number
+}
+
+interface ComparisonData {
+  users: UserStats[]
+  common_games: any[]
+  playtime_ranking: UserStats[]
+  achievement_ranking: UserStats[]
 }
 
 export default function GroupDetailPage() {
@@ -54,7 +62,7 @@ export default function GroupDetailPage() {
   const groupId = params.id as string
 
   const [group, setGroup] = useState<GroupDetail | null>(null)
-  const [comparison, setComparison] = useState<UserComparison[]>([])
+  const [comparison, setComparison] = useState<ComparisonData | null>(null)
   const [intersection, setIntersection] = useState<GameIntersection[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -63,14 +71,29 @@ export default function GroupDetailPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [groupRes, comparisonRes, intersectionRes] = await Promise.all([
-        getGroup(groupId),
-        getGroupComparison(groupId),
-        getGameIntersection(groupId),
-      ])
+      const groupRes = await getGroup(groupId)
       setGroup(groupRes.data)
-      setComparison(comparisonRes.data)
-      setIntersection(intersectionRes.data)
+      
+      // Only fetch comparison and intersection if there are members
+      if (groupRes.data.members && groupRes.data.members.length > 0) {
+        const [comparisonRes, intersectionRes] = await Promise.all([
+          getGroupComparison(groupId),
+          getGameIntersection(groupId),
+        ])
+        // Handle the nested structure from API
+        const compData = comparisonRes.data
+        if (compData && compData.comparison) {
+          setComparison(compData.comparison)
+        } else if (compData && compData.users) {
+          setComparison(compData)
+        } else {
+          setComparison({ users: [], common_games: [], playtime_ranking: [], achievement_ranking: [] })
+        }
+        setIntersection(Array.isArray(intersectionRes.data) ? intersectionRes.data : [])
+      } else {
+        setComparison(null)
+        setIntersection([])
+      }
     } catch (error) {
       console.error('Failed to load group data:', error)
     } finally {
@@ -126,20 +149,22 @@ export default function GroupDetailPage() {
     )
   }
 
-  const playtimeChartData = comparison.map(u => ({
+  const users = comparison?.users || []
+  
+  const playtimeChartData = users.map(u => ({
     name: u.persona_name,
-    playtime: Math.round(u.total_playtime / 60),
+    playtime: Math.round((u.total_playtime || 0) / 60),
   }))
 
-  const gamesChartData = comparison.map(u => ({
+  const gamesChartData = users.map(u => ({
     name: u.persona_name,
-    total: u.total_games,
-    played: u.games_played,
+    total: u.total_games || 0,
+    played: u.games_played || 0,
   }))
 
-  const achievementsChartData = comparison.map(u => ({
+  const achievementsChartData = users.map(u => ({
     name: u.persona_name,
-    achievements: u.total_achievements,
+    achievements: u.achievements_unlocked || 0,
   }))
 
   const gamesOwnedByAll = intersection.filter(g => g.owner_count === group.members.length)

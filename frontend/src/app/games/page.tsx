@@ -12,6 +12,13 @@ export default function GamesPage() {
   const [search, setSearch] = useState('')
   const [selectedGenre, setSelectedGenre] = useState('')
 
+  // Helper function to get Steam game header image
+  const getGameImage = (game: Game) => {
+    if (game.header_image) return game.header_image
+    if (game.app_id) return `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.app_id}/header.jpg`
+    return null
+  }
+
   const loadGames = async () => {
     setLoading(true)
     try {
@@ -88,11 +95,14 @@ export default function GamesPage() {
             {popularGames.map((game) => (
               <div key={game.id} className="group">
                 <div className="aspect-[460/215] rounded overflow-hidden bg-gray-700">
-                  {game.header_image ? (
+                  {getGameImage(game) ? (
                     <img
-                      src={game.header_image}
+                      src={getGameImage(game)!}
                       alt={game.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none'
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-500">
@@ -136,11 +146,14 @@ export default function GamesPage() {
                 className="bg-gray-700/50 rounded-lg overflow-hidden hover:bg-gray-700 transition-colors"
               >
                 <div className="aspect-[460/215] bg-gray-700">
-                  {game.header_image ? (
+                  {getGameImage(game) ? (
                     <img
-                      src={game.header_image}
+                      src={getGameImage(game)!}
                       alt={game.name}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none'
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-500">

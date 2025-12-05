@@ -557,8 +557,19 @@ class ComparisonService:
         
         for user_id in user_ids:
             stats = self.get_user_stats(user_id)
-            if stats:
-                comparison["users"].append(stats)
+            if stats and stats.get("user"):
+                user = stats["user"]
+                user_data = {
+                    "user_id": str(user.id),
+                    "steam_id": user.steam_id,
+                    "persona_name": user.persona_name,
+                    "avatar_url": user.avatar_url,
+                    "total_games": stats.get("total_games", 0),
+                    "total_playtime": stats.get("total_playtime", 0),
+                    "games_played": stats.get("games_played", 0),
+                    "achievements_unlocked": stats.get("achievements_unlocked", 0),
+                }
+                comparison["users"].append(user_data)
         
         # Find common games
         if len(user_ids) >= 2:
