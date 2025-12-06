@@ -93,7 +93,7 @@ docker-compose up -d
 ```
 
 4. **Accéder aux interfaces**
-- Frontend: http://localhost:3000
+- Frontend: http://localhost:3001
 - API Backend: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 - Airflow: http://localhost:8080 (admin/admin)

@@ -994,6 +994,9 @@ video {
   --tw-border-opacity: 1;
   border-color: rgb(102 192 244 / var(--tw-border-opacity));
 }
+.border-steam-blue\/30 {
+  border-color: rgb(102 192 244 / 0.3);
+}
 .border-transparent {
   border-color: transparent;
 }
@@ -1033,6 +1036,9 @@ video {
 }
 .bg-steam-blue\/30 {
   background-color: rgb(102 192 244 / 0.3);
+}
+.bg-steam-blue\/5 {
+  background-color: rgb(102 192 244 / 0.05);
 }
 .bg-steam-dark {
   --tw-bg-opacity: 1;

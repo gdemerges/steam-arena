@@ -41,12 +41,15 @@ interface ClusterData {
 }
 
 interface FeatureStats {
-  total_users: number
-  avg_total_games: number
-  avg_total_playtime: number
-  avg_achievement_rate: number
-  avg_completion_rate: number
-  genre_distribution: Record<string, number>
+  total_users_with_features: number
+  clustered_users: number
+  averages: {
+    games_per_user: number
+    playtime_hours: number
+    completion_rate: number
+    genre_diversity: number
+  }
+  top_favorite_genres: Array<{ genre: string; count: number }>
 }
 
 const COLORS = ['#66C0F4', '#4ade80', '#a855f7', '#fb923c', '#f43f5e', '#06b6d4', '#eab308', '#ec4899']
@@ -90,7 +93,7 @@ export default function MLPage() {
       alert('Features extracted successfully!')
     } catch (error) {
       console.error('Feature extraction failed:', error)
-      alert('Feature extraction failed')
+      alert('Feature extraction failed. Make sure you have users with games in the database.')
     } finally {
       setExtracting(false)
     }
@@ -99,12 +102,22 @@ export default function MLPage() {
   const handleCluster = async () => {
     setClustering(true)
     try {
+      if (!featureStats || featureStats.total_users_with_features === 0) {
+        alert('No users with features yet. Please extract features first.')
+        setClustering(false)
+        return
+      }
+      if (featureStats.total_users_with_features < nClusters) {
+        alert(`Not enough users (${featureStats.total_users_with_features}) for ${nClusters} clusters. Reduce the number of clusters.`)
+        setClustering(false)
+        return
+      }
       await clusterPlayers(nClusters)
       await loadData()
       alert('Clustering completed!')
     } catch (error) {
       console.error('Clustering failed:', error)
-      alert('Clustering failed')
+      alert('Clustering failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setClustering(false)
     }
@@ -147,11 +160,10 @@ export default function MLPage() {
     genre: c.dominant_genre,
   }))
 
-  const genreData = featureStats?.genre_distribution
-    ? Object.entries(featureStats.genre_distribution)
-        .sort((a, b) => b[1] - a[1])
+  const genreData = featureStats?.top_favorite_genres
+    ? featureStats.top_favorite_genres
         .slice(0, 8)
-        .map(([genre, count]) => ({ name: genre, value: count }))
+        .map(g => ({ name: g.genre, value: g.count }))
     : []
 
   return (
@@ -162,6 +174,21 @@ export default function MLPage() {
           <SparklesIcon className="h-5 w-5" />
           Recommendations
         </Link>
+      </div>
+
+      {/* Instructions */}
+      <div className="card border border-steam-blue/30 bg-steam-blue/5">
+        <p className="text-sm text-gray-300">
+          <span className="font-semibold text-steam-blue">ML Analytics Workflow:</span>
+        </p>
+        <ol className="text-sm text-gray-400 mt-2 ml-4 space-y-1">
+          <li>1. <strong>Extract Features</strong> - Analyze all users to calculate ML features</li>
+          <li>2. <strong>Cluster Players</strong> - Group users based on their behavior patterns</li>
+          <li>3. <strong>Export Dataset</strong> - Download the data for external analysis</li>
+        </ol>
+        {featureStats && featureStats.total_users_with_features === 0 && (
+          <p className="text-sm text-yellow-400 mt-3">⚠️ No users with features yet. Start by clicking "Extract Features".</p>
+        )}
       </div>
 
       {/* Actions */}
@@ -255,30 +282,30 @@ export default function MLPage() {
       {featureStats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="card text-center">
-            <p className="text-2xl font-bold text-steam-blue">{featureStats.total_users}</p>
+            <p className="text-2xl font-bold text-steam-blue">{featureStats.total_users_with_features}</p>
             <p className="text-sm text-gray-400">Users with Features</p>
           </div>
           <div className="card text-center">
             <p className="text-2xl font-bold text-purple-400">
-              {Math.round(featureStats.avg_total_games)}
+              {Math.round(featureStats.averages.games_per_user)}
             </p>
             <p className="text-sm text-gray-400">Avg Games</p>
           </div>
           <div className="card text-center">
             <p className="text-2xl font-bold text-yellow-400">
-              {Math.round(featureStats.avg_total_playtime / 60)}h
+              {Math.round(featureStats.averages.playtime_hours)}h
             </p>
             <p className="text-sm text-gray-400">Avg Playtime</p>
           </div>
           <div className="card text-center">
             <p className="text-2xl font-bold text-green-400">
-              {(featureStats.avg_achievement_rate * 100).toFixed(1)}%
+              {(featureStats.averages.completion_rate * 100).toFixed(1)}%
             </p>
             <p className="text-sm text-gray-400">Avg Achievement Rate</p>
           </div>
           <div className="card text-center">
             <p className="text-2xl font-bold text-orange-400">
-              {(featureStats.avg_completion_rate * 100).toFixed(1)}%
+              {(featureStats.averages.completion_rate * 100).toFixed(1)}%
             </p>
             <p className="text-sm text-gray-400">Avg Completion</p>
           </div>
