@@ -129,56 +129,70 @@ class DataSyncService:
     
     async def sync_game_details(self, app_id: int) -> Optional[Game]:
         """Sync detailed game information from Steam Store API."""
-        app_details = await steam_client.get_app_details(app_id)
-        if not app_details:
-            return None
-        
-        parsed_details = steam_client.parse_app_details(app_details)
-        
-        game = self.db.query(Game).filter(Game.app_id == app_id).first()
-        if not game:
-            game = Game(app_id=app_id, name=parsed_details.get("name", f"Game {app_id}"))
-            self.db.add(game)
+        try:
+            app_details = await steam_client.get_app_details(app_id)
+            if not app_details:
+                return None
+            
+            parsed_details = steam_client.parse_app_details(app_details)
+            
+            game = self.db.query(Game).filter(Game.app_id == app_id).first()
+            if not game:
+                game = Game(app_id=app_id, name=parsed_details.get("name", f"Game {app_id}"))
+                self.db.add(game)
+                self.db.flush()
+            
+            # Update game details
+            for key, value in parsed_details.items():
+                if key not in ["genres", "categories"] and value is not None:
+                    setattr(game, key, value)
+            
             self.db.flush()
-        
-        # Update game details
-        for key, value in parsed_details.items():
-            if key not in ["genres", "categories"] and value is not None:
-                setattr(game, key, value)
-        
-        # Sync genres
-        for genre_name in parsed_details.get("genres", []):
-            genre = self.db.query(Genre).filter(Genre.name == genre_name).first()
-            if not genre:
-                genre = Genre(name=genre_name)
-                self.db.add(genre)
-                self.db.flush()
             
-            # Check if relationship exists
-            existing = self.db.query(GameGenre).filter(
-                and_(GameGenre.game_id == game.id, GameGenre.genre_id == genre.id)
-            ).first()
-            if not existing:
-                self.db.add(GameGenre(game_id=game.id, genre_id=genre.id))
-        
-        # Sync categories
-        for cat_name in parsed_details.get("categories", []):
-            category = self.db.query(Category).filter(Category.name == cat_name).first()
-            if not category:
-                category = Category(name=cat_name)
-                self.db.add(category)
-                self.db.flush()
+            # Sync genres - use merge approach to avoid duplicates
+            for genre_name in parsed_details.get("genres", []):
+                genre = self.db.query(Genre).filter(Genre.name == genre_name).first()
+                if not genre:
+                    genre = Genre(name=genre_name)
+                    self.db.add(genre)
+                    self.db.flush()
+                
+                # Check if relationship exists (refresh query to get latest state)
+                self.db.expire_all()
+                existing = self.db.query(GameGenre).filter(
+                    and_(GameGenre.game_id == game.id, GameGenre.genre_id == genre.id)
+                ).first()
+                
+                if not existing:
+                    game_genre = GameGenre(game_id=game.id, genre_id=genre.id)
+                    self.db.merge(game_genre)
             
-            # Check if relationship exists
-            existing = self.db.query(GameCategory).filter(
-                and_(GameCategory.game_id == game.id, GameCategory.category_id == category.id)
-            ).first()
-            if not existing:
-                self.db.add(GameCategory(game_id=game.id, category_id=category.id))
-        
-        self.db.commit()
-        self.db.refresh(game)
-        return game
+            # Sync categories - use merge approach to avoid duplicates
+            for cat_name in parsed_details.get("categories", []):
+                category = self.db.query(Category).filter(Category.name == cat_name).first()
+                if not category:
+                    category = Category(name=cat_name)
+                    self.db.add(category)
+                    self.db.flush()
+                
+                # Check if relationship exists (refresh query to get latest state)
+                self.db.expire_all()
+                existing = self.db.query(GameCategory).filter(
+                    and_(GameCategory.game_id == game.id, GameCategory.category_id == category.id)
+                ).first()
+                
+                if not existing:
+                    game_category = GameCategory(game_id=game.id, category_id=category.id)
+                    self.db.merge(game_category)
+            
+            self.db.commit()
+            self.db.refresh(game)
+            return game
+        except Exception as e:
+            self.db.rollback()
+            print(f"Error syncing game {app_id}: {str(e)}")
+            # Don't raise, just return None to continue with other games
+            return None
     
     async def sync_user_achievements(
         self, 

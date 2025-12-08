@@ -9,6 +9,7 @@ import {
   ChartBarIcon,
   CpuChipIcon,
   Squares2X2Icon,
+  Cog6ToothIcon,
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Games', href: '/games', icon: Squares2X2Icon },
   { name: 'Compare', href: '/compare', icon: ChartBarIcon },
   { name: 'ML Analytics', href: '/ml', icon: CpuChipIcon },
+  { name: 'Admin', href: '/admin', icon: Cog6ToothIcon },
 ]
 
 export default function Sidebar() {

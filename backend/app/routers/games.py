@@ -132,6 +132,144 @@ async def sync_game_details(app_id: int, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/sync-popular-genres")
+async def sync_popular_game_genres(
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Sync genres for the most popular games to populate genre data."""
+    import asyncio
+    
+    try:
+        # Get most popular games (most owned)
+        popular_games = db.query(
+            Game,
+            func.count(UserGame.id).label("owner_count")
+        ).join(
+            UserGame, Game.id == UserGame.game_id
+        ).group_by(Game.id).order_by(
+            desc("owner_count")
+        ).limit(limit).all()
+        
+        if not popular_games:
+            return {
+                "synced": 0,
+                "failed": 0,
+                "skipped": 0,
+                "total_checked": 0,
+                "message": "No games found"
+            }
+        
+        synced = 0
+        failed = 0
+        skipped = 0
+        
+        for game_row in popular_games:
+            game = game_row[0]
+            
+            # Check if game already has genres
+            has_genres = db.query(GameGenre).filter(
+                GameGenre.game_id == game.id
+            ).first() is not None
+            
+            if has_genres:
+                skipped += 1
+                continue
+            
+            try:
+                sync_service = DataSyncService(db)
+                await sync_service.sync_game_details(game.app_id)
+                synced += 1
+                # Rate limiting to avoid Steam API throttling
+                await asyncio.sleep(1.5)
+            except Exception as e:
+                failed += 1
+                print(f"Failed to sync {game.name} ({game.app_id}): {str(e)}")
+                import traceback
+                traceback.print_exc()
+        
+        return {
+            "synced": synced,
+            "failed": failed,
+            "skipped": skipped,
+            "total_checked": len(popular_games)
+        }
+    except Exception as e:
+        print(f"Error in sync_popular_game_genres: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
+
+
+@router.post("/sync-all-genres")
+async def sync_all_game_genres(
+    batch_size: int = Query(100, ge=1, le=500),
+    delay_seconds: float = Query(1.5, ge=0.5, le=5.0),
+    db: Session = Depends(get_db)
+):
+    """Sync genres for ALL games in the database. This may take a long time!"""
+    import asyncio
+    
+    try:
+        # Get all games that have users (are in someone's library)
+        all_games = db.query(Game).join(
+            UserGame, Game.id == UserGame.game_id
+        ).group_by(Game.id).all()
+        
+        total_games = len(all_games)
+        
+        if total_games == 0:
+            return {
+                "synced": 0,
+                "failed": 0,
+                "skipped": 0,
+                "total_games": 0,
+                "message": "No games found in user libraries"
+            }
+        
+        synced = 0
+        failed = 0
+        skipped = 0
+        
+        for i, game in enumerate(all_games, 1):
+            # Check if game already has genres
+            has_genres = db.query(GameGenre).filter(
+                GameGenre.game_id == game.id
+            ).first() is not None
+            
+            if has_genres:
+                skipped += 1
+                continue
+            
+            try:
+                sync_service = DataSyncService(db)
+                await sync_service.sync_game_details(game.app_id)
+                synced += 1
+                
+                # Progress logging every 10 games
+                if i % 10 == 0:
+                    print(f"Progress: {i}/{total_games} - Synced: {synced}, Skipped: {skipped}, Failed: {failed}")
+                
+                # Rate limiting to avoid Steam API throttling
+                await asyncio.sleep(delay_seconds)
+            except Exception as e:
+                failed += 1
+                print(f"Failed to sync {game.name} ({game.app_id}): {str(e)}")
+        
+        return {
+            "synced": synced,
+            "failed": failed,
+            "skipped": skipped,
+            "total_games": total_games,
+            "estimated_time_minutes": round(total_games * delay_seconds / 60, 1)
+        }
+    except Exception as e:
+        print(f"Error in sync_all_game_genres: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
+
+
 @router.get("/{game_id}/owners")
 def get_game_owners(
     game_id: UUID,
