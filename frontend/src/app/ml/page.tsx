@@ -32,12 +32,13 @@ import {
 
 interface ClusterData {
   cluster_id: number
-  member_count: number
-  avg_playtime: number
+  user_count: number
+  avg_playtime_hours: number
   avg_games: number
-  avg_achievements: number
   avg_completion_rate: number
-  dominant_genre: string
+  avg_genre_diversity: number
+  common_genres: Array<[string, number]>
+  cluster_type: string
 }
 
 interface FeatureStats {
@@ -67,11 +68,12 @@ export default function MLPage() {
     setLoading(true)
     try {
       const [clustersRes, statsRes] = await Promise.all([
-        getClusters().catch(() => ({ data: [] })),
+        getClusters().catch(() => ({ data: { cluster_analysis: [] } })),
         getFeatureStats().catch(() => ({ data: null })),
       ])
-      // Handle case where API returns an object instead of array
-      setClusters(Array.isArray(clustersRes.data) ? clustersRes.data : [])
+      // Extract cluster_analysis array from response
+      const clusterData = clustersRes.data?.cluster_analysis || []
+      setClusters(Array.isArray(clusterData) ? clusterData : [])
       setFeatureStats(statsRes.data)
     } catch (error) {
       console.error('Failed to load ML data:', error)
@@ -149,15 +151,15 @@ export default function MLPage() {
   // Prepare chart data
   const clusterPieData = clusters.map(c => ({
     name: `Cluster ${c.cluster_id}`,
-    value: c.member_count,
+    value: c.user_count,
   }))
 
   const clusterScatterData = clusters.map(c => ({
     x: c.avg_games,
-    y: c.avg_playtime / 60,
-    z: c.member_count * 100,
+    y: c.avg_playtime_hours,
+    z: c.user_count * 100,
     cluster: c.cluster_id,
-    genre: c.dominant_genre,
+    type: c.cluster_type,
   }))
 
   const genreData = featureStats?.top_favorite_genres
@@ -426,9 +428,9 @@ export default function MLPage() {
                   <th className="pb-3 font-medium text-right">Members</th>
                   <th className="pb-3 font-medium text-right">Avg Games</th>
                   <th className="pb-3 font-medium text-right">Avg Playtime</th>
-                  <th className="pb-3 font-medium text-right">Avg Achievements</th>
                   <th className="pb-3 font-medium text-right">Completion</th>
-                  <th className="pb-3 font-medium">Top Genre</th>
+                  <th className="pb-3 font-medium text-right">Genre Diversity</th>
+                  <th className="pb-3 font-medium">Type</th>
                 </tr>
               </thead>
               <tbody>
@@ -443,12 +445,12 @@ export default function MLPage() {
                         Cluster {cluster.cluster_id}
                       </div>
                     </td>
-                    <td className="py-3 text-right">{cluster.member_count}</td>
+                    <td className="py-3 text-right">{cluster.user_count}</td>
                     <td className="py-3 text-right">{Math.round(cluster.avg_games)}</td>
-                    <td className="py-3 text-right">{Math.round(cluster.avg_playtime / 60)}h</td>
-                    <td className="py-3 text-right">{Math.round(cluster.avg_achievements)}</td>
+                    <td className="py-3 text-right">{Math.round(cluster.avg_playtime_hours)}h</td>
                     <td className="py-3 text-right">{(cluster.avg_completion_rate * 100).toFixed(1)}%</td>
-                    <td className="py-3">{cluster.dominant_genre || '-'}</td>
+                    <td className="py-3 text-right">{cluster.avg_genre_diversity.toFixed(2)}</td>
+                    <td className="py-3">{cluster.cluster_type}</td>
                   </tr>
                 ))}
               </tbody>
