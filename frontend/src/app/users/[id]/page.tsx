@@ -34,7 +34,20 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-const COLORS = ['#66C0F4', '#4FC3F7', '#29B6F6', '#03A9F4', '#039BE5', '#0288D1', '#0277BD', '#01579B']
+const COLORS = [
+  '#FF6B6B', // Rouge corail
+  '#4ECDC4', // Turquoise
+  '#FFD93D', // Jaune doré
+  '#95E1D3', // Vert menthe
+  '#F38181', // Rose saumon
+  '#AA96DA', // Violet pastel
+  '#FCBF49', // Orange ambré
+  '#06D6A0', // Vert émeraude
+  '#118AB2', // Bleu océan
+  '#EF476F', // Rose vif
+  '#FFB703', // Orange lumineux
+  '#8338EC', // Violet profond
+]
 
 interface UserDashboard {
   user: SteamUser
@@ -62,7 +75,11 @@ interface UserDashboard {
 
 interface GenrePlaytime {
   genre: string
-  playtime_hours: number
+  total_playtime_minutes: number
+  total_playtime_hours: number
+  game_count: number
+  avg_playtime_minutes: number
+  percentage: number
 }
 
 export default function UserDetailPage() {
@@ -297,7 +314,7 @@ export default function UserDetailPage() {
               <PieChart>
                 <Pie
                   data={genreData.slice(0, 8)}
-                  dataKey="playtime_hours"
+                  dataKey="total_playtime_hours"
                   nameKey="genre"
                   cx="50%"
                   cy="50%"
