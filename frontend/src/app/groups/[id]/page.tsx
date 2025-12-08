@@ -9,15 +9,20 @@ import {
   getGameIntersection,
   syncGroupUsers,
   removeGroupMember,
+  addGroupMembers,
+  getUsers,
   GroupDetail,
+  SteamUser,
 } from '@/lib/api'
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
   UserMinusIcon,
+  UserPlusIcon,
   TrophyIcon,
   ClockIcon,
   Squares2X2Icon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import {
   BarChart,
@@ -27,6 +32,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  LabelList,
 } from 'recharts'
 
 interface GameIntersection {
@@ -67,6 +73,10 @@ export default function GroupDetailPage() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [activeTab, setActiveTab] = useState<'comparison' | 'intersection'>('comparison')
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [allUsers, setAllUsers] = useState<SteamUser[]>([])
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([])
+  const [adding, setAdding] = useState(false)
 
   const loadData = async () => {
     setLoading(true)
@@ -125,6 +135,48 @@ export default function GroupDetailPage() {
     } catch (error) {
       console.error('Failed to remove member:', error)
     }
+  }
+
+  const handleOpenAddModal = async () => {
+    try {
+      const usersRes = await getUsers()
+      // Filter out users already in the group
+      const memberIds = group?.members.map(m => m.steam_user.id) || []
+      const availableUsers = usersRes.data.filter(u => !memberIds.includes(u.id))
+      setAllUsers(availableUsers)
+      setSelectedUsers([])
+      setShowAddModal(true)
+    } catch (error) {
+      console.error('Failed to load users:', error)
+    }
+  }
+
+  const handleAddMembers = async () => {
+    if (selectedUsers.length === 0) return
+    setAdding(true)
+    try {
+      // Get steam IDs from selected user IDs
+      const steamIds = allUsers
+        .filter(u => selectedUsers.includes(u.id))
+        .map(u => u.steam_id)
+      await addGroupMembers(groupId, steamIds)
+      setShowAddModal(false)
+      setSelectedUsers([])
+      await loadData()
+    } catch (error) {
+      console.error('Failed to add members:', error)
+      alert('Failed to add members')
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    )
   }
 
   if (loading) {
@@ -199,7 +251,16 @@ export default function GroupDetailPage() {
 
       {/* Members */}
       <div className="card">
-        <h2 className="text-xl font-semibold mb-4">Members</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Members</h2>
+          <button
+            onClick={handleOpenAddModal}
+            className="btn-primary flex items-center gap-2"
+          >
+            <UserPlusIcon className="h-5 w-5" />
+            Add Members
+          </button>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {group.members.map((member) => (
             <div key={member.id} className="text-center group relative">
@@ -261,7 +322,9 @@ export default function GroupDetailPage() {
                 <Tooltip
                   contentStyle={{ background: '#1a1a2e', border: 'none', borderRadius: '8px' }}
                 />
-                <Bar dataKey="playtime" fill="#66C0F4" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="playtime" fill="#66C0F4" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="playtime" position="top" fill="#fff" />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -280,8 +343,12 @@ export default function GroupDetailPage() {
                   contentStyle={{ background: '#1a1a2e', border: 'none', borderRadius: '8px' }}
                 />
                 <Legend />
-                <Bar dataKey="total" name="Total Games" fill="#a855f7" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="played" name="Played" fill="#4ade80" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="total" name="Total Games" fill="#a855f7" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="total" position="top" fill="#fff" />
+                </Bar>
+                <Bar dataKey="played" name="Played" fill="#4ade80" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="played" position="top" fill="#fff" />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -299,7 +366,9 @@ export default function GroupDetailPage() {
                 <Tooltip
                   contentStyle={{ background: '#1a1a2e', border: 'none', borderRadius: '8px' }}
                 />
-                <Bar dataKey="achievements" fill="#fb923c" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="achievements" fill="#fb923c" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="achievements" position="top" fill="#fff" />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -374,6 +443,94 @@ export default function GroupDetailPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Members Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b border-gray-700">
+              <h2 className="text-2xl font-bold">Add Members</h2>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {allUsers.length === 0 ? (
+                <p className="text-gray-400 text-center py-12">
+                  No users available to add. All users are already in this group.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {allUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      onClick={() => toggleUserSelection(user.id)}
+                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                        selectedUsers.includes(user.id)
+                          ? 'bg-steam-blue/20 border-2 border-steam-blue'
+                          : 'bg-gray-700/50 border-2 border-transparent hover:bg-gray-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(user.id)}
+                        onChange={() => {}}
+                        className="w-4 h-4"
+                      />
+                      <img
+                        src={user.avatar_url || '/default-avatar.png'}
+                        alt={user.persona_name}
+                        className="w-10 h-10 rounded-full"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{user.persona_name}</p>
+                        <p className="text-xs text-gray-400 truncate">
+                          {user.total_games || 0} games
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-700 flex justify-between items-center">
+              <p className="text-sm text-gray-400">
+                {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddMembers}
+                  disabled={selectedUsers.length === 0 || adding}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  {adding ? (
+                    <>
+                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlusIcon className="h-5 w-5" />
+                      Add {selectedUsers.length} Member{selectedUsers.length !== 1 ? 's' : ''}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

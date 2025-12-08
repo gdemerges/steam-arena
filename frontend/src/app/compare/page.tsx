@@ -16,6 +16,7 @@ import {
   PolarRadiusAxis,
   Radar,
   Legend,
+  LabelList,
 } from 'recharts'
 
 interface ComparisonUser {
@@ -226,7 +227,9 @@ export default function ComparePage() {
                 <Tooltip
                   contentStyle={{ background: '#1a1a2e', border: 'none', borderRadius: '8px' }}
                 />
-                <Bar dataKey="playtime" fill="#66C0F4" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="playtime" fill="#66C0F4" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="playtime" position="top" fill="#fff" />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
