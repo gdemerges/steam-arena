@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { getGames, getPopularGames, getGenres, Game } from '@/lib/api'
 import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline'
 
@@ -93,7 +94,7 @@ export default function GamesPage() {
           <h2 className="text-xl font-semibold mb-4">🔥 Popular in Your Library</h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {popularGames.map((game) => (
-              <div key={game.id} className="group">
+              <Link key={game.id} href={`/games/${game.id}`} className="group">
                 <div className="aspect-[460/215] rounded overflow-hidden bg-gray-700">
                   {getGameImage(game) ? (
                     <img
@@ -111,7 +112,7 @@ export default function GamesPage() {
                   )}
                 </div>
                 <p className="text-sm mt-2 truncate">{game.name}</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -141,9 +142,10 @@ export default function GamesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {games.map((game) => (
-              <div
+              <Link
                 key={game.id}
-                className="bg-gray-700/50 rounded-lg overflow-hidden hover:bg-gray-700 transition-colors"
+                href={`/games/${game.id}`}
+                className="bg-gray-700/50 rounded-lg overflow-hidden hover:bg-gray-700 transition-colors block"
               >
                 <div className="aspect-[460/215] bg-gray-700">
                   {getGameImage(game) ? (
@@ -187,7 +189,7 @@ export default function GamesPage() {
                     )}
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

@@ -20,17 +20,14 @@ import {
 } from 'recharts'
 
 interface ComparisonUser {
-  user: {
-    steam_id: string
-    persona_name: string
-    avatar_url: string
-  }
+  user_id: string
+  steam_id: string
+  persona_name: string
+  avatar_url: string
   total_games: number
   total_playtime: number
-  total_achievements: number
   achievements_unlocked: number
   games_played: number
-  completion_rate: number
 }
 
 interface CommonGame {
@@ -96,7 +93,7 @@ export default function ComparePage() {
 
   // Prepare chart data
   const barChartData = comparison?.users.map(u => ({
-    name: u.user.persona_name,
+    name: u.persona_name,
     playtime: Math.round(u.total_playtime / 60),
     games: u.total_games,
     achievements: u.achievements_unlocked,
@@ -105,23 +102,19 @@ export default function ComparePage() {
   const radarChartData = comparison?.users.length ? [
     {
       metric: 'Games Owned',
-      ...Object.fromEntries(comparison.users.map(u => [u.user.persona_name, u.total_games]))
+      ...Object.fromEntries(comparison.users.map(u => [u.persona_name, u.total_games]))
     },
     {
       metric: 'Playtime (h)',
-      ...Object.fromEntries(comparison.users.map(u => [u.user.persona_name, Math.round(u.total_playtime / 60)]))
+      ...Object.fromEntries(comparison.users.map(u => [u.persona_name, Math.round(u.total_playtime / 60)]))
     },
     {
       metric: 'Achievements',
-      ...Object.fromEntries(comparison.users.map(u => [u.user.persona_name, u.achievements_unlocked]))
+      ...Object.fromEntries(comparison.users.map(u => [u.persona_name, u.achievements_unlocked]))
     },
     {
       metric: 'Games Played',
-      ...Object.fromEntries(comparison.users.map(u => [u.user.persona_name, u.games_played]))
-    },
-    {
-      metric: 'Completion %',
-      ...Object.fromEntries(comparison.users.map(u => [u.user.persona_name, Math.round(u.completion_rate)]))
+      ...Object.fromEntries(comparison.users.map(u => [u.persona_name, u.games_played]))
     },
   ] : []
 
@@ -244,9 +237,9 @@ export default function ComparePage() {
                 <PolarRadiusAxis tick={{ fill: '#9ca3af' }} />
                 {comparison.users.map((u, index) => (
                   <Radar
-                    key={u.user.steam_id}
-                    name={u.user.persona_name}
-                    dataKey={u.user.persona_name}
+                    key={u.steam_id}
+                    name={u.persona_name}
+                    dataKey={u.persona_name}
                     stroke={COLORS[index % COLORS.length]}
                     fill={COLORS[index % COLORS.length]}
                     fillOpacity={0.2}
@@ -272,12 +265,11 @@ export default function ComparePage() {
                     <th className="pb-3 font-medium text-right">Playtime</th>
                     <th className="pb-3 font-medium text-right">Played</th>
                     <th className="pb-3 font-medium text-right">Achievements</th>
-                    <th className="pb-3 font-medium text-right">Completion</th>
                   </tr>
                 </thead>
                 <tbody>
                   {comparison.users.map((u, index) => (
-                    <tr key={u.user.steam_id} className="border-b border-gray-700/50">
+                    <tr key={u.steam_id} className="border-b border-gray-700/50">
                       <td className="py-3">
                         <div className="flex items-center gap-2">
                           <div
@@ -285,18 +277,17 @@ export default function ComparePage() {
                             style={{ backgroundColor: COLORS[index % COLORS.length] }}
                           />
                           <img
-                            src={u.user.avatar_url || '/default-avatar.png'}
-                            alt={u.user.persona_name}
+                            src={u.avatar_url || '/default-avatar.png'}
+                            alt={u.persona_name}
                             className="w-8 h-8 rounded-full"
                           />
-                          <span>{u.user.persona_name}</span>
+                          <span>{u.persona_name}</span>
                         </div>
                       </td>
                       <td className="py-3 text-right">{u.total_games}</td>
                       <td className="py-3 text-right">{Math.round(u.total_playtime / 60)}h</td>
                       <td className="py-3 text-right">{u.games_played}</td>
                       <td className="py-3 text-right">{u.achievements_unlocked}</td>
-                      <td className="py-3 text-right">{u.completion_rate.toFixed(1)}%</td>
                     </tr>
                   ))}
                 </tbody>
