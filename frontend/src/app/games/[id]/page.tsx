@@ -139,10 +139,6 @@ export default function GameDetailPage() {
                   <p className="font-medium">{game.publisher}</p>
                 </div>
               )}
-              <div>
-                <p className="text-sm text-gray-500">App ID</p>
-                <p className="font-medium">{game.app_id}</p>
-              </div>
               {game.metacritic_score && (
                 <div>
                   <p className="text-sm text-gray-500">Metacritic Score</p>

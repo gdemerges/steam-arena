@@ -94,6 +94,7 @@ export default function UserDetailPage() {
   const [syncing, setSyncing] = useState(false)
   const [sortBy, setSortBy] = useState<'playtime' | 'recent' | 'name'>('playtime')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [showPlaytimeModal, setShowPlaytimeModal] = useState(false)
 
   const loadData = async () => {
     setLoading(true)
@@ -248,7 +249,10 @@ export default function UserDetailPage() {
             </div>
           </div>
         </div>
-        <div className="card">
+        <button 
+          onClick={() => setShowPlaytimeModal(true)}
+          className="card hover:bg-gray-700/50 transition-colors cursor-pointer text-left w-full"
+        >
           <div className="flex items-center gap-3">
             <ClockIcon className="h-8 w-8 text-yellow-400" />
             <div>
@@ -256,7 +260,7 @@ export default function UserDetailPage() {
               <p className="text-2xl font-bold">{(dashboard?.stats?.total_playtime_hours || 0).toFixed(0)}h</p>
             </div>
           </div>
-        </div>
+        </button>
         <div className="card">
           <div className="flex items-center gap-3">
             <TrophyIcon className="h-8 w-8 text-orange-400" />
@@ -422,6 +426,85 @@ export default function UserDetailPage() {
           </table>
         </div>
       </div>
+
+      {/* Playtime Equivalences Modal */}
+      {showPlaytimeModal && (
+        <div 
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowPlaytimeModal(false)}
+        >
+          <div 
+            className="bg-gray-800 rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-yellow-400 mb-2">🎮 Temps de Jeu Total</h2>
+                <p className="text-4xl font-bold text-white">{(dashboard?.stats?.total_playtime_hours || 0).toFixed(0)} heures</p>
+              </div>
+              <button 
+                onClick={() => setShowPlaytimeModal(false)}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-purple-400 mb-3">📚 Si tu avais étudié à la place...</h3>
+                <ul className="space-y-2 text-gray-300">
+                  <li>• Tu aurais pu apprendre <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) / 20)}</span> nouvelles langues (20h par langue)</li>
+                  <li>• Ou obtenir <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) / 100)}</span> certificats professionnels (100h chacun)</li>
+                  <li>• Ou lire environ <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) / 8)}</span> livres (8h par livre)</li>
+                </ul>
+              </div>
+
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-blue-400 mb-3">🌍 Équivalents voyage...</h3>
+                <ul className="space-y-2 text-gray-300">
+                  <li>• Tu aurais pu faire <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) / 24)}</span> tours du monde en avion (24h par tour)</li>
+                  <li>• Ou regarder le lever du soleil <span className="font-bold text-white">{(dashboard?.stats?.total_playtime_hours || 0).toFixed(0)}</span> fois</li>
+                  <li>• Ou marcher de Paris à Marseille <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) / 140)}</span> fois (140h de marche)</li>
+                </ul>
+              </div>
+
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-green-400 mb-3">💪 Si tu avais fait du sport...</h3>
+                <ul className="space-y-2 text-gray-300">
+                  <li>• Tu aurais couru environ <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) * 10)}</span> km (10 km/h)</li>
+                  <li>• Ou brûlé <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) * 500).toLocaleString()}</span> calories (500 cal/h)</li>
+                  <li>• Ou fait <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) * 600).toLocaleString()}</span> pompes (600 par heure)</li>
+                </ul>
+              </div>
+
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-red-400 mb-3">🎬 Équivalents divertissement...</h3>
+                <ul className="space-y-2 text-gray-300">
+                  <li>• Tu aurais pu regarder <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) / 2)}</span> films entiers (2h par film)</li>
+                  <li>• Ou <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) / 0.75)}</span> épisodes de série (45 min par épisode)</li>
+                  <li>• Ou écouter l'intégrale de Beethoven <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) / 80)}</span> fois (80h)</li>
+                </ul>
+              </div>
+
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-orange-400 mb-3">😴 Temps de sommeil...</h3>
+                <ul className="space-y-2 text-gray-300">
+                  <li>• C'est l'équivalent de <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) / 8)}</span> nuits de sommeil (8h par nuit)</li>
+                  <li>• Soit <span className="font-bold text-white">{Math.floor((dashboard?.stats?.total_playtime_hours || 0) / 24)}</span> jours complets sans interruption</li>
+                  <li>• Ou <span className="font-bold text-white">{((dashboard?.stats?.total_playtime_hours || 0) / 24 / 365).toFixed(2)}</span> années de ta vie</li>
+                </ul>
+              </div>
+
+              <div className="bg-gradient-to-r from-purple-600/30 to-pink-600/30 rounded-lg p-4 border border-purple-500/50">
+                <p className="text-center text-lg text-gray-200">
+                  <span className="font-bold text-white">Mais bon...</span> le plaisir que tu as eu n'a pas de prix ! 🎮✨
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -99,24 +99,85 @@ export default function ComparePage() {
     achievements: u.achievements_unlocked,
   })) || []
 
-  const radarChartData = comparison?.users.length ? [
-    {
-      metric: 'Games Owned',
-      ...Object.fromEntries(comparison.users.map(u => [u.persona_name, u.total_games]))
-    },
-    {
-      metric: 'Playtime (h)',
-      ...Object.fromEntries(comparison.users.map(u => [u.persona_name, Math.round(u.total_playtime / 60)]))
-    },
-    {
-      metric: 'Achievements',
-      ...Object.fromEntries(comparison.users.map(u => [u.persona_name, u.achievements_unlocked]))
-    },
-    {
-      metric: 'Games Played',
-      ...Object.fromEntries(comparison.users.map(u => [u.persona_name, u.games_played]))
-    },
-  ] : []
+  // Normalize data for radar chart (0-100 scale)
+  const radarChartData = comparison?.users.length ? (() => {
+    const metrics = {
+      gamesOwned: comparison.users.map(u => u.total_games),
+      playtime: comparison.users.map(u => Math.round(u.total_playtime / 60)),
+      achievements: comparison.users.map(u => u.achievements_unlocked),
+      gamesPlayed: comparison.users.map(u => u.games_played),
+    }
+    
+    const maxValues = {
+      gamesOwned: Math.max(...metrics.gamesOwned, 1),
+      playtime: Math.max(...metrics.playtime, 1),
+      achievements: Math.max(...metrics.achievements, 1),
+      gamesPlayed: Math.max(...metrics.gamesPlayed, 1),
+    }
+    
+    return [
+      {
+        metric: 'Games Owned',
+        ...Object.fromEntries(comparison.users.map((u, idx) => [
+          u.persona_name, 
+          Math.round((u.total_games / maxValues.gamesOwned) * 100)
+        ])),
+        _real: Object.fromEntries(comparison.users.map(u => [u.persona_name, u.total_games]))
+      },
+      {
+        metric: 'Playtime (h)',
+        ...Object.fromEntries(comparison.users.map((u, idx) => [
+          u.persona_name, 
+          Math.round((Math.round(u.total_playtime / 60) / maxValues.playtime) * 100)
+        ])),
+        _real: Object.fromEntries(comparison.users.map(u => [u.persona_name, Math.round(u.total_playtime / 60)]))
+      },
+      {
+        metric: 'Achievements',
+        ...Object.fromEntries(comparison.users.map((u, idx) => [
+          u.persona_name, 
+          Math.round((u.achievements_unlocked / maxValues.achievements) * 100)
+        ])),
+        _real: Object.fromEntries(comparison.users.map(u => [u.persona_name, u.achievements_unlocked]))
+      },
+      {
+        metric: 'Games Played',
+        ...Object.fromEntries(comparison.users.map((u, idx) => [
+          u.persona_name, 
+          Math.round((u.games_played / maxValues.gamesPlayed) * 100)
+        ])),
+        _real: Object.fromEntries(comparison.users.map(u => [u.persona_name, u.games_played]))
+      },
+    ]
+  })() : []
+
+  // Custom tooltip for radar chart
+  const CustomRadarTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const metricData = radarChartData.find(d => d.metric === payload[0].payload.metric)
+      
+      return (
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-lg">
+          <p className="font-semibold text-white mb-2">{payload[0].payload.metric}</p>
+          {payload.map((entry: any, index: number) => {
+            const realValue = metricData?._real?.[entry.name] || 0
+            return (
+              <div key={index} className="flex items-center gap-2 text-sm">
+                <div 
+                  className="w-3 h-3 rounded-full" 
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span className="text-gray-300">{entry.name}:</span>
+                <span className="font-bold text-white">{realValue.toLocaleString()}</span>
+                <span className="text-gray-500 text-xs">({entry.value}/100)</span>
+              </div>
+            )
+          })}
+        </div>
+      )
+    }
+    return null
+  }
 
   return (
     <div className="space-y-6">
@@ -234,7 +295,7 @@ export default function ComparePage() {
               <RadarChart data={radarChartData}>
                 <PolarGrid stroke="#374151" />
                 <PolarAngleAxis dataKey="metric" tick={{ fill: '#9ca3af' }} />
-                <PolarRadiusAxis tick={{ fill: '#9ca3af' }} />
+                <PolarRadiusAxis tick={{ fill: '#9ca3af' }} domain={[0, 100]} />
                 {comparison.users.map((u, index) => (
                   <Radar
                     key={u.steam_id}
@@ -246,11 +307,12 @@ export default function ComparePage() {
                   />
                 ))}
                 <Legend />
-                <Tooltip
-                  contentStyle={{ background: '#1a1a2e', border: 'none', borderRadius: '8px' }}
-                />
+                <Tooltip content={<CustomRadarTooltip />} />
               </RadarChart>
             </ResponsiveContainer>
+            <p className="text-xs text-gray-500 text-center mt-2">
+              * Valeurs normalisées sur une échelle de 0-100 pour chaque métrique
+            </p>
           </div>
 
           {/* Detailed Stats Table */}
