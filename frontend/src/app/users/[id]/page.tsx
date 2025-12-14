@@ -8,10 +8,14 @@ import {
   getUserGames,
   getUserDashboard,
   getUserPlaytimeByGenre,
+  getUserYearlyStats,
+  getUserMonthlyStats,
   syncUserProfile,
   syncUserGames,
   SteamUser,
   UserGame,
+  YearlyStats,
+  MonthlyStats,
 } from '@/lib/api'
 import {
   ArrowLeftIcon,
@@ -90,6 +94,10 @@ export default function UserDetailPage() {
   const [dashboard, setDashboard] = useState<UserDashboard | null>(null)
   const [games, setGames] = useState<UserGame[]>([])
   const [genreData, setGenreData] = useState<GenrePlaytime[]>([])
+  const [yearlyStats, setYearlyStats] = useState<YearlyStats[]>([])
+  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([])
+  const [selectedStatsYear, setSelectedStatsYear] = useState(new Date().getFullYear())
+  const [viewMode, setViewMode] = useState<'yearly' | 'monthly'>('yearly')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [sortBy, setSortBy] = useState<'playtime' | 'recent' | 'name'>('playtime')
@@ -99,20 +107,34 @@ export default function UserDetailPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [userRes, dashboardRes, gamesRes, genreRes] = await Promise.all([
+      const [userRes, dashboardRes, gamesRes, genreRes, yearlyRes] = await Promise.all([
         getUser(userId),
         getUserDashboard(userId),
         getUserGames(userId, { limit: 500, sort_by: 'playtime' }),
         getUserPlaytimeByGenre(userId),
+        getUserYearlyStats(userId).catch(() => ({ data: [] })),
       ])
       setUser(userRes.data)
       setDashboard(dashboardRes.data)
       setGames(gamesRes.data)
       setGenreData(genreRes.data)
+      setYearlyStats(yearlyRes.data)
+      
+      // Load monthly stats for current year
+      loadMonthlyStats(selectedStatsYear)
     } catch (error) {
       console.error('Failed to load user data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadMonthlyStats = async (year: number) => {
+    try {
+      const monthlyRes = await getUserMonthlyStats(userId, year).catch(() => ({ data: [] }))
+      setMonthlyStats(monthlyRes.data)
+    } catch (error) {
+      console.error('Failed to load monthly stats:', error)
     }
   }
 
@@ -337,6 +359,152 @@ export default function UserDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Yearly/Monthly Stats */}
+      {(yearlyStats.length > 0 || monthlyStats.length > 0) && (
+        <div className="card">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">📅 Évolution du Temps de Jeu</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setViewMode('yearly')}
+                className={`px-4 py-2 rounded transition-colors ${
+                  viewMode === 'yearly'
+                    ? 'bg-steam-blue text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Annuel
+              </button>
+              <button
+                onClick={() => setViewMode('monthly')}
+                className={`px-4 py-2 rounded transition-colors ${
+                  viewMode === 'monthly'
+                    ? 'bg-steam-blue text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Mensuel
+              </button>
+              {viewMode === 'monthly' && (
+                <select
+                  value={selectedStatsYear}
+                  onChange={(e) => {
+                    const year = Number(e.target.value)
+                    setSelectedStatsYear(year)
+                    loadMonthlyStats(year)
+                  }}
+                  className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                >
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+
+          {/* Yearly View */}
+          {viewMode === 'yearly' && yearlyStats.length > 0 && (
+            <>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={yearlyStats}>
+                  <XAxis dataKey="year" tick={{ fill: '#9ca3af' }} />
+                  <YAxis tick={{ fill: '#9ca3af' }} label={{ value: 'Heures', angle: -90, position: 'insideLeft', fill: '#9ca3af' }} />
+                  <Tooltip
+                    contentStyle={{ background: '#1a1a2e', border: 'none', borderRadius: '8px' }}
+                    formatter={(value: number) => [`${value.toFixed(0)} h`, 'Temps de jeu']}
+                  />
+                  <Bar dataKey="total_playtime_hours" fill="#66C0F4" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {yearlyStats.map((stat) => (
+                  <div key={stat.year} className="border border-gray-700 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-lg font-bold text-steam-blue">{stat.year}</h3>
+                      <span className="text-2xl font-bold">{stat.total_playtime_hours.toFixed(0)}h</span>
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between text-gray-400">
+                        <span>Jeux joués:</span>
+                        <span className="font-semibold text-white">{stat.games_played_count}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-400">
+                        <span>Nouveaux jeux:</span>
+                        <span className="font-semibold text-green-400">{stat.new_games_count}</span>
+                      </div>
+                      {stat.most_played_game && (
+                        <div className="mt-2 pt-2 border-t border-gray-700">
+                          <p className="text-xs text-gray-500 mb-1">Jeu le plus joué:</p>
+                          <p className="text-sm font-medium truncate">{stat.most_played_game.name}</p>
+                          <p className="text-xs text-steam-blue">{stat.most_played_game.playtime_hours}h</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Monthly View */}
+          {viewMode === 'monthly' && monthlyStats.length > 0 && (
+            <>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={monthlyStats.slice().reverse()}>
+                  <XAxis dataKey="month_name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#9ca3af' }} label={{ value: 'Heures', angle: -90, position: 'insideLeft', fill: '#9ca3af' }} />
+                  <Tooltip
+                    contentStyle={{ background: '#1a1a2e', border: 'none', borderRadius: '8px' }}
+                    formatter={(value: number) => [`${value.toFixed(0)} h`, 'Temps de jeu']}
+                  />
+                  <Bar dataKey="total_playtime_hours" fill="#4ECDC4" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {monthlyStats.map((stat) => (
+                  <div key={`${stat.year}-${stat.month}`} className="border border-gray-700 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-sm font-bold text-green-400">{stat.month_name}</h3>
+                      <span className="text-xl font-bold">{stat.total_playtime_hours.toFixed(0)}h</span>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between text-gray-400">
+                        <span>Jeux joués:</span>
+                        <span className="font-semibold text-white">{stat.games_played_count}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-400">
+                        <span>Nouveaux:</span>
+                        <span className="font-semibold text-green-400">{stat.new_games_count}</span>
+                      </div>
+                      {stat.most_played_game && (
+                        <div className="mt-2 pt-2 border-t border-gray-700">
+                          <p className="text-xs text-gray-500 mb-1">Plus joué:</p>
+                          <p className="text-xs font-medium truncate" title={stat.most_played_game.name}>
+                            {stat.most_played_game.name}
+                          </p>
+                          <p className="text-xs text-green-400">{stat.most_played_game.playtime_hours}h</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* No data message */}
+          {viewMode === 'monthly' && monthlyStats.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-400 mb-2">Aucune donnée mensuelle disponible pour {selectedStatsYear}</p>
+              <p className="text-sm text-gray-500">Créez des snapshots et calculez les stats depuis la page Admin</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Games List */}
       <div className="card">

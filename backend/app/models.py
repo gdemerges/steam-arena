@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text, ForeignKey, JSON
+from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text, ForeignKey, JSON, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -270,3 +270,79 @@ class Recommendation(Base):
     # Relationships
     user = relationship("SteamUser", back_populates="recommendations")
     game = relationship("Game", back_populates="recommendations")
+
+
+class PlaytimeHistory(Base):
+    """
+    Table pour tracker l'historique du temps de jeu.
+    Permet de calculer le temps joué par an/mois en comparant les snapshots.
+    """
+    __tablename__ = "playtime_history"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    steam_user_id = Column(UUID(as_uuid=True), ForeignKey("steam_users.id", ondelete="CASCADE"), index=True)
+    game_id = Column(UUID(as_uuid=True), ForeignKey("games.id", ondelete="CASCADE"), index=True)
+    playtime_forever = Column(Integer, default=0)  # Snapshot du total à ce moment (en minutes)
+    recorded_at = Column(DateTime, default=datetime.utcnow, index=True)  # Timestamp du snapshot
+    year = Column(Integer, index=True)  # Année pour faciliter les requêtes
+    month = Column(Integer, index=True)  # Mois pour faciliter les requêtes
+    
+    # Relationships
+    user = relationship("SteamUser")
+    game = relationship("Game")
+
+
+class UserYearlyStats(Base):
+    """
+    Table agrégée pour les stats annuelles d'un utilisateur.
+    Pré-calculée pour performances optimales.
+    """
+    __tablename__ = "user_yearly_stats"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    steam_user_id = Column(UUID(as_uuid=True), ForeignKey("steam_users.id", ondelete="CASCADE"), index=True)
+    year = Column(Integer, nullable=False, index=True)
+    total_playtime_minutes = Column(Integer, default=0)
+    total_playtime_hours = Column(Float, default=0.0)
+    games_played_count = Column(Integer, default=0)
+    new_games_count = Column(Integer, default=0)  # Jeux ajoutés cette année
+    achievements_unlocked = Column(Integer, default=0)
+    most_played_game_id = Column(UUID(as_uuid=True), ForeignKey("games.id"))
+    most_played_playtime = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("SteamUser")
+    most_played_game = relationship("Game")
+
+
+class UserMonthlyStats(Base):
+    """
+    Table agrégée pour les stats mensuelles d'un utilisateur.
+    Permet un suivi plus granulaire que les stats annuelles.
+    """
+    __tablename__ = "user_monthly_stats"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    steam_user_id = Column(UUID(as_uuid=True), ForeignKey("steam_users.id", ondelete="CASCADE"), index=True)
+    year = Column(Integer, nullable=False, index=True)
+    month = Column(Integer, nullable=False, index=True)  # 1-12
+    total_playtime_minutes = Column(Integer, default=0)
+    total_playtime_hours = Column(Float, default=0.0)
+    games_played_count = Column(Integer, default=0)
+    new_games_count = Column(Integer, default=0)  # Jeux ajoutés ce mois
+    achievements_unlocked = Column(Integer, default=0)
+    most_played_game_id = Column(UUID(as_uuid=True), ForeignKey("games.id"))
+    most_played_playtime = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("SteamUser")
+    most_played_game = relationship("Game")
+    
+    # Constraint pour éviter les doublons (un seul record par user/year/month)
+    __table_args__ = (
+        UniqueConstraint('steam_user_id', 'year', 'month', name='uix_user_year_month'),
+    )

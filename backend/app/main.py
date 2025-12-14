@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.database import engine, Base
-from app.routers import users, groups, games, dashboard, ml
+from app.routers import users, groups, games, dashboard, ml, playtime_tracking
 
 
 @asynccontextmanager
@@ -66,6 +66,7 @@ app.include_router(groups.router, prefix="/api/v1")
 app.include_router(games.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
 app.include_router(ml.router, prefix="/api/v1")
+app.include_router(playtime_tracking.router, prefix="/api/v1")
 
 
 @app.get("/")
@@ -92,6 +93,7 @@ def api_info():
             "groups": "/api/v1/groups",
             "games": "/api/v1/games",
             "dashboard": "/api/v1/dashboard",
-            "ml": "/api/v1/ml"
+            "ml": "/api/v1/ml",
+            "playtime_tracking": "/api/v1/playtime-tracking"
         }
     }

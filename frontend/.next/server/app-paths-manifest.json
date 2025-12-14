@@ -1,1 +1,8 @@
-{}
+{
+  "/page": "app/page.js",
+  "/users/[id]/page": "app/users/[id]/page.js",
+  "/users/page": "app/users/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/ml/recommendations/page": "app/ml/recommendations/page.js",
+  "/ml/page": "app/ml/page.js"
+}

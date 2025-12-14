@@ -263,6 +263,12 @@ docker compose logs -f backend
 
 ## Roadmap Potentiel
 
+- [x] **Système de tracking historique du playtime** (implémenté 14 déc 2025)
+  - Tables PlaytimeHistory et UserYearlyStats
+  - Snapshots quotidiens automatisables
+  - Calcul stats annuelles (heures/an, jeux joués, top jeu)
+  - Interface admin pour gestion manuelle
+  - Graphiques sur profils utilisateurs
 - [ ] Filtres par genre sur page Games
 - [ ] Export données utilisateur (CSV/JSON)
 - [ ] Système de recommendations basé sur ML
@@ -271,3 +277,70 @@ docker compose logs -f backend
 - [ ] Badges/achievements personnalisés
 - [ ] Mode sombre/clair
 - [ ] Responsive mobile optimisé
+
+## Nouveautés Décembre 2025
+
+### 📊 Tracking Historique du Temps de Jeu
+
+**Problème résolu :** L'API Steam ne fournit que le temps de jeu total cumulé, sans historique annuel ou mensuel.
+
+**Solution implémentée :** Système de snapshots périodiques permettant de calculer le temps joué par an.
+
+#### Architecture
+
+**Tables ajoutées :**
+- `playtime_history` : Snapshots du temps de jeu à intervalles réguliers
+- `user_yearly_stats` : Statistiques annuelles pré-calculées
+
+#### Endpoints API
+
+**Snapshots :**
+- `POST /api/v1/playtime-tracking/snapshot` - Crée snapshot actuel (tous users/games)
+- `GET /api/v1/playtime-tracking/snapshot-history?limit=10` - Historique des snapshots
+
+**Stats annuelles :**
+- `POST /api/v1/playtime-tracking/calculate-yearly-stats/{year}` - Calcule stats pour une année
+- `GET /api/v1/playtime-tracking/users/{steam_id}/yearly-stats` - Récupère stats user
+
+#### Fonctionnalités Interface
+
+**Page Admin (/admin) :**
+- Bouton "Créer Snapshot Maintenant" - Enregistre état actuel
+- Sélecteur année + "Calculer Stats" - Calcule temps joué par an
+- Historique des 10 derniers snapshots
+- Instructions et informations complètes
+
+**Profil Utilisateur (/users/[id]) :**
+- Graphique BarChart : Heures de jeu par année
+- Cartes détaillées par année :
+  - Total heures de jeu
+  - Jeux joués (count)
+  - Nouveaux jeux ajoutés
+  - Jeu le plus joué (nom + heures)
+
+#### Workflow Recommandé
+
+1. **Setup initial :** Créer premier snapshot depuis page Admin
+2. **Automatisation :** Configurer CRON quotidien (minuit)
+   ```cron
+   0 0 * * * curl -X POST http://localhost:8000/api/v1/playtime-tracking/snapshot
+   ```
+3. **Calcul annuel :** Fin d'année, calculer stats via Admin ou API
+4. **Visualisation :** Stats s'affichent automatiquement sur profils users
+
+#### Limitations
+
+- ⚠️ **Pas d'historique rétroactif** - Le tracking commence dès activation
+- **Première année partielle** - Si activation en cours d'année
+- **Snapshots requis** - Au minimum : 1 snapshot début année + 1 snapshot fin année
+
+#### Avantages
+
+- ✅ Évolution temporelle précise du temps de jeu
+- ✅ Comparaison année par année
+- ✅ Identification jeux les plus joués par période
+- ✅ Statistiques nouveaux jeux acquis
+- ✅ Base pour futures analyses ML (tendances, prédictions)
+
+**Documentation complète :** Voir [PLAYTIME_TRACKING.md](/PLAYTIME_TRACKING.md)
+

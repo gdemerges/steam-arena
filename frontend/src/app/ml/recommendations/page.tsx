@@ -26,7 +26,8 @@ export default function RecommendationsPage() {
     setLoading(true)
     try {
       const res = await getRecommendations(userId, type, 20)
-      setRecommendations(res.data)
+      // L'API retourne {user_id, recommendation_type, recommendations: [...]}
+      setRecommendations(res.data.recommendations || [])
     } catch (error) {
       console.error('Failed to load recommendations:', error)
       setRecommendations([])

@@ -98,6 +98,20 @@ docker-compose up -d
 - API Docs: http://localhost:8000/docs
 - Airflow: http://localhost:8080 (admin/admin)
 
+### Redémarrer Airflow
+
+Pour redémarrer Airflow après avoir ajouté de nouveaux DAGs :
+
+```bash
+docker-compose restart airflow-webserver airflow-scheduler
+```
+
+Ou pour tout redémarrer :
+
+```bash
+docker-compose restart
+```
+
 ## 📡 API Endpoints
 
 ### Users
@@ -208,17 +222,47 @@ curl "http://localhost:8000/api/v1/ml/export-dataset?format=csv" > dataset.csv
 
 ## 🎯 Airflow DAGs
 
-### steam_user_sync
+### DAGs de Synchronisation Steam
+#### steam_user_sync
 - **Schedule**: Toutes les 6 heures
 - **Action**: Synchronise tous les utilisateurs enregistrés
 
-### steam_batch_sync (Manuel)
+#### steam_batch_sync (Manuel)
 - **Config**: Liste de Steam IDs en paramètre
 - **Action**: Synchronise une liste spécifique d'utilisateurs
 
-### steam_group_sync (Manuel)
+#### steam_group_sync (Manuel)
 - **Config**: Group ID en paramètre
 - **Action**: Synchronise tous les membres d'un groupe
+
+### DAGs de Tracking du Temps de Jeu
+
+#### steam_arena_daily_playtime_snapshot
+- **Schedule**: Quotidien à minuit
+- **Action**: Crée un snapshot du temps de jeu de tous les utilisateurs
+- **Importance**: Essentiel pour le tracking historique
+
+#### steam_arena_monthly_yearly_stats
+- **Schedule**: Le 1er de chaque mois à 2h
+- **Action**: Calcule les statistiques annuelles et mensuelles
+
+#### steam_arena_end_of_year_stats
+- **Schedule**: 31 décembre à 3h
+- **Action**: Calcule les stats finales de l'année écoulée
+
+#### steam_arena_manual_playtime_snapshot (Manuel)
+- **Action**: Création de snapshot à la demande
+
+## 📊 Playtime Tracking
+
+Le système de tracking permet de suivre l'évolution du temps de jeu :
+- **Snapshots quotidiens** : Capture automatique du temps de jeu
+- **Stats annuelles** : Vue d'ensemble par année (temps total, jeux joués, nouveaux jeux)
+- **Stats mensuelles** : Suivi mensuel détaillé avec jeu le plus joué
+- **Interface admin** : Création manuelle de snapshots et calcul de stats
+- **Profil utilisateur** : Visualisation interactive avec graphiques et détails
+
+Voir [PLAYTIME_TRACKING.md](./PLAYTIME_TRACKING.md) pour la documentation complète.
 
 ## 📝 License
 
